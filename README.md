@@ -29,8 +29,57 @@ cd nginx-1.24.0
 make
 make install
 ```
-4. Modify ```nginx.conf``` file to set up the RTMP server:
+4. Modify ```nginx.conf``` file at location: ```/usr/local/nginx/conf/nginx.conf``` (for self-compiled) to set up the RTMP server:
 ```
 Refer to the "nginx.conf" file
 ```
-5. 
+5. HLS web service configuration at location ```/usr/local/nginx/rtmp/html/index.html``` (relative location is ```../rtmp/html/index.html```):
+```
+Refer to the "index.html" file
+```
+6. (optional) Enforce authenticated users to watch live streaming:
+* Install ```htpasswd``` tool:
+```
+apt install -y apache2-utils
+```
+* Create a password file at location ```/usr/local/nginx/rtmp/.htpasswd```:
+```
+htpasswd -c .htpasswd user_name
+```
+* To add more users:
+```
+htpasswd .htpasswd another_user
+```
+* Ensure nginx can read this ```htpasswd``` file:
+```
+chown nobody:nogroup .htpasswd  # For compiled Nginx
+chmod 640 .htpasswd
+```
+8. OBS (or other streaming software) configuration:
+Check the video is encoded as H.264; For the RTMP server URL and authentication:
+```
+URL: rtmp://your_domain:port/live
+Private key: follow with the HTML setup
+```
+* Or only with URL (the authentication key is incorporated)
+```
+URL: rtmp://your_domain:port/live/private_key
+```
+9. To start the server (or reload): ```nginx``` or ```nginx -s reload```
+
+### Debug:
+For the self-compiled nginx server, most files are stored at ```/user/local/nginx/```, which contains:
+```
+- conf/
+-- nginx.conf
+-- ...
+- logs/
+- html/
+- rtmp/
+-- .htpasswd
+-- html/
+--- index.html
+- ...
+```
+The temporary video chunks are stored at ```/tmp/hls/```. They will be automatically cleared by nginx.
+
