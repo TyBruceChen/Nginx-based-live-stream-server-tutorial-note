@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Live Stream</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1.4.0"></script>
+    <style>
+        video {
+            width: 95vw; /* Full viewport width */
+            height: auto; /* Maintain aspect ratio */
+            max-height: 100vh; /* Prevent overflow on small screens */
+            background: black; /* Ensure visibility */
+            display: block;
+            object-fit: contain; /* Fit video within bounds */
+            margin: 0 auto; /* Center horizontally */
+        }
+        .error {
+            color: red;
+        }
+        button {
+            margin-top: 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+        }
+        input {
+            margin: 5px;
+            padding: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <label>Username: <input type="text" id="username" value="streamuser"></label>
+        <label>Password: <input type="password" id="password" value=""></label>
+        <button id="authButton">Login and Play</button>
+    </div>
+    <video id="video" controls muted></video>
+    <button id="playButton" style="display: none;">Play Stream</button>
+    <div id="error" class="error"></div>
+    <script>
+        const video = document.getElementById('video');
+        const playButton = document.getElementById('playButton');
+        const authButton = document.getElementById('authButton');
+        const usernameInput = document.getElementById('username');
+        const passwordInput = document.getElementById('password');
+        const errorDiv = document.getElementById('error');
+
+        function startStream() {
+            if (Hls.isSupported()) {
+                const hls = new Hls({
+                    liveSyncDurationCount: 3,
+                    liveMaxLatencyDurationCount: 6,
+                    maxBufferLength: 30,
+                    maxMaxBufferLength: 300,
+                    debug: true,
+                    xhrSetup: function(xhr) {
+                        // Add Basic Auth header
+                        const username = usernameInput.value;
+                        const password = passwordInput.value;
+                        const credentials = btoa(`${username}:${password}`);
+                        xhr.setRequestHeader('Authorization', `Basic ${credentials}`);
+                    }
+                });
+                hls.loadSource('http://your_domain:port/hls/your_private_key.m3u8'); //your domain and port, along with the private key
+                hls.attachMedia(video);
+
+                hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                    console.log('Manifest parsed');
+                    video.play().catch(error => {
+                        console.error('Autoplay failed:', error);
+                        errorDiv.textContent = 'Click Play to start the stream';
+                        playButton.style.display = 'block';
+                    });
+                });
+
+                hls.on(Hls.Events.ERROR, (event, data) => {
+                    console.error('HLS Error:', data);
+                    errorDiv.textContent = `Error: ${data.type} - ${data.details}`;
+                    if (data.fatal) {
+                        switch (data.type) {
+                            case Hls.ErrorTypes.NETWORK_ERROR:
+                                errorDiv.textContent += ' - Retrying...';
+                                hls.startLoad();
+                                break;
+                            case Hls.ErrorTypes.MEDIA_ERROR:
+                                hls.recoverMediaError();
+                                break;
+                        }
+                    }
+                });
+
+                playButton.addEventListener('click', () => {
+                    video.play().then(() => {
+                        playButton.style.display = 'none';
+                        errorDiv.textContent = '';
+                    }).catch(error => {
+                        errorDiv.textContent = 'Playback failed: ' + error.message;
+                    });
+                });
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = 'http://your_domain:port/hls/your_private_key.m3u8'; //your domain and port, along with the private key
+                video.addEventListener('loadedmetadata', () => {
+                    video.play().catch(error => {
+                        errorDiv.textContent = 'Click Play to start';
+                        playButton.style.display = 'block';
+                    });
+                });
+                playButton.addEventListener('click', () => {
+                    video.play().then(() => {
+                        playButton.style.display = 'none';
+                        errorDiv.textContent = '';
+                    }).catch(error => {
+                        errorDiv.textContent = 'Playback failed: ' + error.message;
+                    });
+                });
+            } else {
+                errorDiv.textContent = 'HLS not supported in this browser';
+            }
+        }
+
+        authButton.addEventListener('click', () => {
+            startStream();
+            authButton.style.display = 'none';
+            usernameInput.style.display = 'none';
+            passwordInput.style.display = 'none';
+        });
+    </script>
+</body>
+</html>
